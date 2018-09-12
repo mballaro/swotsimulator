@@ -203,6 +203,12 @@ def run_nadir(p):
     # - Initialize some parameters values
     timestart = datetime.datetime.now()
     mod_tools.initialize_parameters(p)
+    # MB add
+    if os.path.isdir(p.outdatadir) is False:
+        logger.warn('Output directory {} did not exist and was '
+                    'created'.format(p.dir_setup))
+        os.makedirs(p.outdatadir)
+
     p.nadir = True
     p.karin = False
     p.phase = False
@@ -330,8 +336,11 @@ def run_nadir(p):
                                                    nfilesat.strip())
         else:
             # To be replaced by load_ngrid
-            gridfile = '{}{}_grid.nc'.format((p.filesgrid).strip(),
-                                              nfilesat.strip())
+            #gridfile = '{}{}_grid.nc'.format((p.filesgrid).strip(),
+            #                                  nfilesat.strip())
+            # MB change CLS preporessing stuff (directly read grid file set in param file)
+            gridfile = p.filesgrid
+
             ngrid = rw_data.Sat_nadir(nfile=gridfile)
             ngrid.file = gridfile
             ngrid.ipass = nfilesat
@@ -877,6 +886,12 @@ def create_Nadirlikedata(cycle, ntotfile, list_file, modelbox, ngrid,
     # Look for satellite data that are beween step-p.timesetp/2 and
     # setp+p.timestep/2
     if p.file_input is not None:
+        # MB add
+        #if (ngrid.timeshift > time[0]) or (ngrid.timeshift > time[-1]):
+        #    print "Warning negative timeshift set to 0."
+        #    print "timeshift:", ngrid.timeshift, "time[0]", time[0], "time[-1]", time[-1]
+        #    ngrid.timeshift = 0.
+
         time_shift_end = time[-1] - ngrid.timeshift
         time_shift_start = time[0] - ngrid.timeshift
         model_tmin = modeltime - p.timestep/2.
@@ -923,6 +938,11 @@ def create_Nadirlikedata(cycle, ntotfile, list_file, modelbox, ngrid,
                 lon_model = numpy.mod(lon_model + 180., 360.) - 180.
             # if grid is regular, use interpolate.RectBivariateSpline to
             # interpolate
+
+            # MB add for NATL60
+            model_data.vlon = lon_model
+            ngrid.lon = lon_ngrid
+
             if p.grid == 'regular' or model_data.len_coord == 1:
                 # ########################TODO
                 # To be moved to routine rw_data
@@ -1060,10 +1080,15 @@ def save_SWOT(cycle, sgrid, err, p, mask_land, time=[], vindice=[], SSH_true=[],
 def save_Nadir(cycle, ngrid, errnad, err, p, time=[], vindice_nadir=[],
                SSH_true_nadir=[]):
     if type(ngrid.ipass) == str:
-        ofile = '{}nadir_c{:02d}_{}.nc'.format(p.file_output, cycle + 1,
-                                               ngrid.ipass)
+        if not ngrid.ipass:
+            ofile = '{}_nadir_c{:02d}.nc'.format(p.file_output, cycle + 1)
+        else:
+
+            ofile = '{}_nadir_c{:02d}_{}.nc'.format(p.file_output, cycle + 1,
+                                                   ngrid.ipass)
+
     else:
-        ofile = '{}nadir_c{:02d}_p{:03d}.nc'.format(p.file_output, cycle + 1,
+        ofile = '{}_nadir_c{:02d}_p{:03d}.nc'.format(p.file_output, cycle + 1,
                                                     ngrid.ipass)
     OutputNadir = rw_data.Sat_nadir(nfile=ofile,
                                     lon=(ngrid.lon+360) % 360,

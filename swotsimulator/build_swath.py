@@ -9,6 +9,7 @@ import multiprocessing
 import time
 import logging
 import sys
+import pdb
 
 # Define logger level for debug purposes
 logger = logging.getLogger(__name__)
@@ -29,8 +30,15 @@ def makeorbit(modelbox, p, orbitfile='orbit_292.txt', filealtimeter=None):
     # - Load SWOT orbit ground track
     logger.info('Load data from orbit file')
     if p.order_orbit_col is None:
-        volon, volat, votime = numpy.loadtxt(orbitfile, usecols=(1, 2, 0),
+        if orbitfile=='/home/cubelmann/Data/Data_input_simulator/orbit_skim.txt':
+            volon, volat, votime = numpy.loadtxt(orbitfile, usecols=(0,1,2),
                                              unpack=True)
+            votime = votime*86400
+            volon = numpy.mod(volon,360)
+        else:
+            volon, volat, votime = numpy.loadtxt(orbitfile, usecols=(1, 2, 0),
+                                             unpack=True)
+
 
     else:
         ncols = p.order_orbit_col
@@ -43,6 +51,9 @@ def makeorbit(modelbox, p, orbitfile='orbit_292.txt', filealtimeter=None):
                      '(time, lon, lat)')
         sys.exit(1)
     # - If orbit is at low resolution, interpolate at 0.5 s resolution
+    nop = numpy.shape(votime)[0]
+    tcycle = votime[nop-1] + votime[1] - votime[0]
+
     if numpy.mean(votime[1:] - votime[:-1]) > 0.5:
         x, y, z = mod_tools.spher2cart(volon, volat)
         time_hr = numpy.arange(0., votime[-1], 0.5)
@@ -59,7 +70,7 @@ def makeorbit(modelbox, p, orbitfile='orbit_292.txt', filealtimeter=None):
                                                           y_hr[ii],
                                                           z_hr[ii])
         time_hr = time_hr / const.secinday
-        ind = numpy.where((time_hr < const.tcycle))
+        ind = numpy.where((time_hr < tcycle))
         volon = lon_hr[ind]
         volat = lat_hr[ind]
         votime = time_hr[ind]
@@ -68,7 +79,8 @@ def makeorbit(modelbox, p, orbitfile='orbit_292.txt', filealtimeter=None):
     nop = numpy.shape(votime)[0]
 
     # - Get cycle period.
-    tcycle = votime[nop-1] + votime[1] - votime[0]
+    tcycle = tcycle / const.secinday
+    #pdb.set_trace()
     # shift time if the user needs to shift the time of the orbit
     try:
         pshift_time = p.shift_time
